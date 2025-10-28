@@ -1,0 +1,58 @@
+; Booth's Algorithm for signed 16-bit multiplication
+.model small
+.stack 100h
+.data
+M       dw 6          ; Multiplicand
+Q       dw -3         ; Multiplier
+A       dw 0          ; Accumulator
+COUNT   dw 16         ; Number of bits
+Q_1     db 0          ; Extra bit (Q-1)
+
+.code
+main proc
+    mov ax, @data
+    mov ds, ax
+
+    mov cx, COUNT     ; bit count = 16
+    mov ax, A         ; A = 0
+    mov bx, M         ; BX = multiplicand
+    mov dx, Q         ; DX = multiplier (Q)
+    mov al, Q_1       ; AL = Q-1 (temporary)
+
+next_step:
+    mov bl, dl        ; BL = Q0 (LSB of Q)
+    and bl, 1
+
+    cmp bl, al        ; Compare Q0 and Q-1
+    je shift_only     ; If same, just shift
+
+    cmp bl, 0
+    jne sub_operation ; If Q0=1 and Q-1=0 ? subtract (A = A - M)
+    add ax, bx        ; If Q0=0 and Q-1=1 ? add (A = A + M)
+    jmp shift_part
+
+sub_operation:
+    sub ax, bx
+
+shift_part:
+shift_only:
+    ; Perform arithmetic right shift of [A,Q,Q-1]
+    ; Save LSB of Q into AL (for new Q-1)
+    mov al, dl
+    and al, 1
+
+    ; Shift right A and Q together with sign extension
+    sar ax, 1         ; arithmetic right shift of A
+    rcr dx, 1         ; rotate carry into Q
+
+    mov Q_1, al       ; update Q-1 = previous Q0
+
+    loop next_step
+
+    ; Final result: A:Q => AX:DX (32-bit result)
+    mov ah, 4Ch
+    int 21h
+main endp
+end main
+
+
